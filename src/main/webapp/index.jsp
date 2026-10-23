@@ -2,231 +2,557 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Spider Hero: City Run</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Chhota Bheem Runner</title>
 <style>
   * { box-sizing: border-box; }
-  body { margin:0; background:#071426; color:#fff; font-family:Arial, sans-serif; }
-  header { padding:14px 20px; display:flex; justify-content:space-between; align-items:center;
-           background:#0d213b; border-bottom:1px solid #24476b; gap:12px; flex-wrap:wrap; }
-  h1 { margin:0; font-size:clamp(20px,3vw,30px); }
-  header p { margin:5px 0 0; color:#bdd5ee; font-size:14px; }
-  .hud { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-  .pill { background:#183657; padding:9px 13px; border-radius:10px; font-weight:bold; }
-  main { max-width:1200px; margin:18px auto; padding:0 14px; }
-  .game-wrap { position:relative; border:2px solid #315779; border-radius:14px; overflow:hidden;
-               box-shadow:0 16px 45px #0008; background:#8ed0ff; }
-  canvas { display:block; width:100%; height:auto; background:#8ed0ff; }
-  .overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-             background:#03101dbb; text-align:center; padding:20px; }
-  .panel { max-width:440px; background:#102944f2; border:1px solid #5480a8; border-radius:16px; padding:24px; }
-  .panel h2 { margin-top:0; font-size:28px; }
-  button { border:0; border-radius:9px; background:#ef3038; color:white; padding:12px 18px;
-           font-size:16px; font-weight:bold; cursor:pointer; }
-  button:hover { background:#ff4d54; }
-  .help { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin-top:14px; }
-  .help div { background:#102944; border:1px solid #24476b; border-radius:10px; padding:12px; color:#d8e9fa; }
-  .note { color:#9fb9d3; font-size:13px; line-height:1.5; }
-  kbd { background:#243f5d; padding:3px 7px; border-radius:5px; border:1px solid #55718e; }
+  body {
+    margin: 0;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+    background: #87ceeb;
+  }
+  #hud {
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    z-index: 5;
+    color: white;
+    background: #5b2600dd;
+    padding: 12px 18px;
+    border-radius: 12px;
+    font-size: 18px;
+    line-height: 1.7;
+  }
+  #help {
+    position: fixed;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    background: #ffffffdd;
+    padding: 10px 16px;
+    border-radius: 10px;
+    text-align: center;
+    width: max-content;
+    max-width: 95%;
+  }
+  #overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0008;
+  }
+  #panel {
+    background: #fff4d4;
+    padding: 28px;
+    border-radius: 20px;
+    text-align: center;
+    max-width: 90%;
+    box-shadow: 0 10px 40px #0005;
+  }
+  button {
+    background: #e76f00;
+    color: white;
+    border: 0;
+    border-radius: 10px;
+    padding: 13px 22px;
+    font-size: 17px;
+    cursor: pointer;
+  }
+  button:hover { background: #b95100; }
 </style>
 </head>
 <body>
-<header>
-  <div><h1>🕸️ Spider Hero: City Run</h1><p>A small superhero-inspired browser game</p></div>
-  <div class="hud">
-    <div class="pill">Score: <span id="score">0</span></div>
-    <div class="pill">Health: <span id="health">❤️❤️❤️</span></div>
-    <button id="restartTop" type="button">Restart</button>
-  </div>
-</header>
-<main>
-  <div class="game-wrap">
-    <canvas id="game" width="1000" height="560" aria-label="Superhero city game"></canvas>
-    <div class="overlay" id="overlay">
-      <div class="panel">
-        <h2 id="overlayTitle">Ready to swing?</h2>
-        <p id="overlayText">Run across the city, collect golden web tokens, and avoid the rooftop obstacles.</p>
-        <p><kbd>←</kbd> <kbd>→</kbd> move &nbsp; <kbd>↑</kbd> or <kbd>Space</kbd> jump / web swing</p>
-        <button id="startBtn" type="button">Start Game</button>
-      </div>
-    </div>
-  </div>
-  <div class="help">
-    <div><strong>Move</strong><br><kbd>←</kbd> / <kbd>→</kbd> or <kbd>A</kbd> / <kbd>D</kbd></div>
-    <div><strong>Jump / Web swing</strong><br><kbd>↑</kbd> or <kbd>Space</kbd></div>
-    <div><strong>Goal</strong><br>Collect gold tokens and dodge obstacles.</div>
-  </div>
-  <p class="note">This is an original, simple 2D demo—not an official Spider-Man game. It uses canvas drawings and does not require image downloads or extra JavaScript libraries.</p>
-</main>
-<script>
-(() => {
-  const canvas = document.getElementById('game');
-  const ctx = canvas.getContext('2d');
-  const scoreEl = document.getElementById('score');
-  const healthEl = document.getElementById('health');
-  const overlay = document.getElementById('overlay');
-  const overlayTitle = document.getElementById('overlayTitle');
-  const overlayText = document.getElementById('overlayText');
-  const startBtn = document.getElementById('startBtn');
 
-  const W = canvas.width, H = canvas.height, ground = 475;
-  let keys = {}, running = false, score = 0, health = 3, frame = 0;
-  let hero, tokens, obstacles, skyline, speed;
+<div id="hud">
+  🏆 Score: <span id="score">0</span><br>
+  🟡 Laddus: <span id="laddus">0</span>
+</div>
 
-  function reset() {
-    score = 0; health = 3; frame = 0; speed = 4;
-    hero = { x: 120, y: ground - 58, w: 36, h: 58, vx: 0, vy: 0, grounded: true, invulnerable: 0 };
-    tokens = []; obstacles = [];
-    skyline = [];
-    let x = 0;
-    while (x < W + 200) {
-      const bw = 45 + Math.random() * 80, bh = 100 + Math.random() * 210;
-      skyline.push({x, w:bw, h:bh, shade:Math.floor(35 + Math.random()*45)});
-      x += bw + 4;
-    }
-    updateHud();
+<div id="overlay">
+  <div id="panel">
+    <h1>🦸 3D Chhota Bheem Adventure</h1>
+    <p>Run through the village, collect laddus and avoid obstacles!</p>
+    <p>Use A/D or ←/→ to move, SPACE or ↑ to jump.</p>
+    <button id="start">Start Game</button>
+  </div>
+</div>
+
+<div id="help">
+  ⬅️ ➡️ Move &nbsp; | &nbsp; ⬆️ Jump &nbsp; | &nbsp; Collect laddus!
+</div>
+
+<script type="module">
+import * as THREE from
+  'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+scene.fog = new THREE.Fog(0x87ceeb, 35, 115);
+
+const camera = new THREE.PerspectiveCamera(
+  65, window.innerWidth / window.innerHeight, 0.1, 200
+);
+camera.position.set(0, 5, 10);
+camera.lookAt(0, 1, -5);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x557744, 2));
+
+const sunlight = new THREE.DirectionalLight(0xffffff, 3);
+sunlight.position.set(-5, 12, 8);
+sunlight.castShadow = true;
+scene.add(sunlight);
+
+const mat = color => new THREE.MeshStandardMaterial({ color });
+
+const grassMat = mat(0x55ad42);
+const roadMat = mat(0x777777);
+const whiteMat = mat(0xffffff);
+const orangeMat = mat(0xff7900);
+const skinMat = mat(0xd99557);
+const greenMat = mat(0x168a42);
+const shoeMat = mat(0x512b16);
+const darkMat = mat(0x352116);
+const goldMat = mat(0xffc928);
+
+// Ground and road
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(200, 200), grassMat
+);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.12;
+ground.receiveShadow = true;
+scene.add(ground);
+
+const road = new THREE.Mesh(
+  new THREE.PlaneGeometry(7, 180), roadMat
+);
+road.rotation.x = -Math.PI / 2;
+road.position.set(0, -0.05, -40);
+road.receiveShadow = true;
+scene.add(road);
+
+// Road markings
+const markings = [];
+for (let z = 12; z > -110; z -= 8) {
+  const line = new THREE.Mesh(
+    new THREE.BoxGeometry(0.12, 0.025, 3),
+    whiteMat
+  );
+  line.position.set(0, 0.01, z);
+  scene.add(line);
+  markings.push(line);
+}
+
+// Simple colorful village scenery
+function createHouse(x, z, color) {
+  const group = new THREE.Group();
+
+  const house = new THREE.Mesh(
+    new THREE.BoxGeometry(3, 2.5, 2.5),
+    mat(color)
+  );
+  house.position.y = 1.2;
+  house.castShadow = true;
+  group.add(house);
+
+  const roof = new THREE.Mesh(
+    new THREE.ConeGeometry(2.4, 1.5, 4),
+    mat(0x963b22)
+  );
+  roof.position.y = 3.15;
+  roof.rotation.y = Math.PI / 4;
+  roof.castShadow = true;
+  group.add(roof);
+
+  const door = new THREE.Mesh(
+    new THREE.BoxGeometry(0.65, 1.35, 0.12),
+    darkMat
+  );
+  door.position.set(0, 0.68, 1.3);
+  group.add(door);
+
+  group.position.set(x, 0, z);
+  scene.add(group);
+  return group;
+}
+
+function createTree(x, z) {
+  const group = new THREE.Group();
+
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.2, 0.3, 1.6, 8),
+    mat(0x75421e)
+  );
+  trunk.position.y = 0.8;
+  group.add(trunk);
+
+  const leaves = new THREE.Mesh(
+    new THREE.SphereGeometry(1.15, 12, 10),
+    mat(0x187a31)
+  );
+  leaves.position.y = 2.1;
+  group.add(leaves);
+
+  group.position.set(x, 0, z);
+  scene.add(group);
+  return group;
+}
+
+const scenery = [];
+for (let i = 0; i < 12; i++) {
+  const z = -i * 12;
+  scenery.push(createHouse(-7, z, 0xe9b65c));
+  scenery.push(createHouse(7, z - 5, 0xe5d1a0));
+  scenery.push(createTree(-5, z - 5));
+  scenery.push(createTree(5, z));
+}
+
+// Build a stylized cartoon hero from 3D shapes
+const hero = new THREE.Group();
+scene.add(hero);
+
+function sphere(parent, radius, material, x, y, z,
+                sx = 1, sy = 1, sz = 1) {
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(radius, 16, 12), material
+  );
+  mesh.position.set(x, y, z);
+  mesh.scale.set(sx, sy, sz);
+  mesh.castShadow = true;
+  parent.add(mesh);
+  return mesh;
+}
+
+function limb(parent, radius, length, material, x, y, z) {
+  const mesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius, radius, length, 12),
+    material
+  );
+  mesh.position.set(x, y, z);
+  mesh.castShadow = true;
+  parent.add(mesh);
+  return mesh;
+}
+
+// Legs and shoes
+const legs = [];
+for (const x of [-0.23, 0.23]) {
+  const leg = limb(hero, 0.12, 0.48, skinMat, x, 0.5, 0);
+  legs.push(leg);
+
+  const shoe = new THREE.Mesh(
+    new THREE.SphereGeometry(0.16, 12, 10), shoeMat
+  );
+  shoe.scale.set(1, 0.6, 1.5);
+  shoe.position.set(x, 0.16, -0.08);
+  hero.add(shoe);
+}
+
+// Green shorts
+const shorts = new THREE.Mesh(
+  new THREE.BoxGeometry(0.65, 0.32, 0.42), greenMat
+);
+shorts.position.y = 0.85;
+shorts.castShadow = true;
+hero.add(shorts);
+
+// Orange shirt / body
+const torso = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.3, 0.36, 0.8, 16),
+  orangeMat
+);
+torso.position.y = 1.4;
+torso.castShadow = true;
+hero.add(torso);
+
+// Arms
+const arms = [];
+for (const side of [-1, 1]) {
+  const arm = limb(
+    hero, 0.105, 0.64, skinMat, side * 0.43, 1.4, 0
+  );
+  arm.rotation.z = side * -0.18;
+  arms.push(arm);
+
+  sphere(hero, 0.12, skinMat, side * 0.45, 1.04, 0);
+}
+
+// Neck and head
+limb(hero, 0.13, 0.22, skinMat, 0, 1.88, 0);
+
+sphere(hero, 0.39, skinMat, 0, 2.22, 0, 1, 1.05, 0.9);
+
+// Hair
+sphere(hero, 0.36, darkMat, 0, 2.47, -0.02, 1.05, 0.55, 0.95);
+
+// Eyes, facing the camera at positive Z
+for (const x of [-0.14, 0.14]) {
+  sphere(hero, 0.075, whiteMat, x, 2.25, 0.335);
+  sphere(hero, 0.036, darkMat, x, 2.25, 0.397);
+}
+
+sphere(hero, 0.055, skinMat, 0, 2.13, 0.36, 1, 0.7, 0.8);
+hero.position.set(0, 0, 3);
+
+// Game objects
+const objects = [];
+const lanes = [-2, 0, 2];
+
+function createLaddu(x, z) {
+  const group = new THREE.Group();
+  sphere(group, 0.32, goldMat, 0, 0, 0, 1, 0.85, 1);
+
+  // Small golden dots
+  for (let i = 0; i < 5; i++) {
+    const dot = sphere(
+      group, 0.045, mat(0xffe98a),
+      Math.cos(i * 1.26) * 0.2,
+      Math.sin(i * 1.26) * 0.16,
+      0.2
+    );
   }
-  function updateHud() {
+
+  group.position.set(x, 0.9, z);
+  scene.add(group);
+  objects.push({ group, type: 'laddu', hit: false });
+}
+
+function createObstacle(x, z) {
+  const group = new THREE.Group();
+
+  const block = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 1.25, 0.8),
+    mat(0xb74225)
+  );
+  block.position.y = 0.62;
+  block.castShadow = true;
+  group.add(block);
+
+  const stripe = new THREE.Mesh(
+    new THREE.BoxGeometry(1.02, 0.18, 0.83),
+    goldMat
+  );
+  stripe.position.y = 0.7;
+  group.add(stripe);
+
+  group.position.set(x, 0, z);
+  scene.add(group);
+  objects.push({ group, type: 'obstacle', hit: false });
+}
+
+let score = 0;
+let ladduCount = 0;
+let speed = 0.24;
+let running = false;
+let jumping = false;
+let jumpVelocity = 0;
+let elapsed = 0;
+let spawnTimer = 0;
+
+const scoreEl = document.getElementById('score');
+const laddusEl = document.getElementById('laddus');
+const overlay = document.getElementById('overlay');
+const panel = document.getElementById('panel');
+
+function spawnObjects() {
+  const lane = lanes[Math.floor(Math.random() * lanes.length)];
+  const z = -75 - Math.random() * 15;
+
+  if (Math.random() < 0.65) {
+    createLaddu(lane, z);
+    if (Math.random() < 0.6) createLaddu(lane, z - 4);
+  } else {
+    createObstacle(lane, z);
+  }
+}
+
+function startGame() {
+  for (const object of objects) scene.remove(object.group);
+  objects.length = 0;
+
+  score = 0;
+  ladduCount = 0;
+  speed = 0.24;
+  elapsed = 0;
+  spawnTimer = 0;
+  hero.position.set(0, 0, 3);
+  hero.rotation.set(0, 0, 0);
+  jumping = false;
+  jumpVelocity = 0;
+
+  scoreEl.textContent = '0';
+  laddusEl.textContent = '0';
+
+  overlay.style.display = 'none';
+  running = true;
+}
+
+function gameOver() {
+  running = false;
+  panel.innerHTML = `
+    <h1>Game Over!</h1>
+    <h2>🏆 Score: ${score}</h2>
+    <p>🟡 Laddus collected: ${ladduCount}</p>
+    <button id="restart">Play Again</button>
+  `;
+  overlay.style.display = 'flex';
+  document.getElementById('restart').onclick = startGame;
+}
+
+document.getElementById('start').onclick = startGame;
+
+function moveHero(direction) {
+  if (!running) return;
+  hero.position.x = THREE.MathUtils.clamp(
+    hero.position.x + direction * 2, -2, 2
+  );
+}
+
+function jump() {
+  if (!running || jumping) return;
+  jumping = true;
+  jumpVelocity = 0.23;
+}
+
+window.addEventListener('keydown', event => {
+  if (['ArrowLeft', 'ArrowRight', 'ArrowUp', ' '].includes(event.key)) {
+    event.preventDefault();
+  }
+
+  if (event.repeat) return;
+
+  if (event.key === 'ArrowLeft' || event.key.toLowerCase() === 'a') {
+    moveHero(-1);
+  }
+  if (event.key === 'ArrowRight' || event.key.toLowerCase() === 'd') {
+    moveHero(1);
+  }
+  if (event.key === 'ArrowUp' || event.key === ' ') jump();
+});
+
+// Simple touch controls
+let touchStartX = null;
+window.addEventListener('touchstart', event => {
+  touchStartX = event.changedTouches[0].clientX;
+}, { passive: true });
+
+window.addEventListener('touchend', event => {
+  if (touchStartX === null) return;
+  const dx = event.changedTouches[0].clientX - touchStartX;
+
+  if (Math.abs(dx) > 35) moveHero(dx > 0 ? 1 : -1);
+  else jump();
+
+  touchStartX = null;
+}, { passive: true });
+
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+
+  if (running) {
+    elapsed += dt;
+    score += Math.floor(dt * 10);
+    speed = Math.min(0.48, speed + dt * 0.003);
+    spawnTimer += dt;
+
     scoreEl.textContent = score;
-    healthEl.textContent = '❤️'.repeat(Math.max(0, health)) + '♡'.repeat(3 - Math.max(0, health));
-  }
-  function start() {
-    reset(); running = true; overlay.style.display = 'none'; requestAnimationFrame(loop);
-  }
-  function endGame() {
-    running = false;
-    overlayTitle.textContent = health <= 0 ? 'Game over!' : 'Paused';
-    overlayText.textContent = `Final score: ${score}. Press play to try again.`;
-    startBtn.textContent = 'Play Again';
-    overlay.style.display = 'flex';
-  }
 
-  function drawCity() {
-    const sky = ctx.createLinearGradient(0,0,0,H);
-    sky.addColorStop(0,'#58b5f4'); sky.addColorStop(1,'#d6f1ff');
-    ctx.fillStyle = sky; ctx.fillRect(0,0,W,H);
-    // Sun and distant skyline
-    ctx.fillStyle = '#fff4b0'; ctx.beginPath(); ctx.arc(830,85,36,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#a0c9e7';
-    skyline.forEach((b,i) => {
-      const bx = ((b.x - frame*0.45) % (W+180) + W+180) % (W+180) - 90;
-      ctx.fillRect(bx, ground-b.h, b.w, b.h);
-      ctx.fillStyle = '#d9ecfa';
-      for (let wy=ground-b.h+14; wy<ground-15; wy+=24) {
-        for (let wx=bx+8; wx<bx+b.w-7; wx+=18) {
-          ctx.fillRect(wx,wy,7,10);
+    // Jump physics
+    if (jumping) {
+      hero.position.y += jumpVelocity;
+      jumpVelocity -= 0.012;
+      if (hero.position.y <= 0) {
+        hero.position.y = 0;
+        jumping = false;
+        jumpVelocity = 0;
+      }
+    }
+
+    // Run animation
+    const swing = Math.sin(elapsed * 14) * 0.35;
+    legs[0].rotation.x = swing;
+    legs[1].rotation.x = -swing;
+    arms[0].rotation.x = -swing;
+    arms[1].rotation.x = swing;
+
+    // Move road markings
+    for (const line of markings) {
+      line.position.z += speed * 60 * dt;
+      if (line.position.z > 15) line.position.z -= 120;
+    }
+
+    // Move village scenery
+    for (const item of scenery) {
+      item.position.z += speed * 60 * dt;
+      if (item.position.z > 15) item.position.z -= 144;
+    }
+
+    // Spawn laddus and obstacles
+    if (spawnTimer > 1.1) {
+      spawnObjects();
+      spawnTimer = 0;
+    }
+
+    for (let i = objects.length - 1; i >= 0; i--) {
+      const object = objects[i];
+      object.group.position.z += speed * 60 * dt;
+      object.group.rotation.y += dt * 1.7;
+
+      const dx = Math.abs(object.group.position.x - hero.position.x);
+      const dz = Math.abs(object.group.position.z - hero.position.z);
+
+      if (!object.hit && dx < 0.85 && dz < 0.95) {
+        if (object.type === 'laddu') {
+          object.hit = true;
+          ladduCount++;
+          score += 100;
+          scoreEl.textContent = score;
+          laddusEl.textContent = ladduCount;
+          scene.remove(object.group);
+          objects.splice(i, 1);
+          continue;
+        } else if (hero.position.y < 0.7) {
+          gameOver();
+          break;
         }
       }
-      ctx.fillStyle = `rgb(${b.shade},${b.shade+20},${b.shade+35})`;
-    });
-    // Street
-    ctx.fillStyle = '#38485b'; ctx.fillRect(0,ground,W,H-ground);
-    ctx.fillStyle = '#e8e8c9'; ctx.fillRect(0,ground+45,W,4);
-    ctx.fillStyle = '#f8d65c';
-    for(let x=-(frame*speed%100); x<W; x+=100) ctx.fillRect(x,ground+65,48,5);
-    // Rooftop / foreground edge
-    ctx.fillStyle = '#25364b'; ctx.fillRect(0,ground-8,W,12);
+
+      if (object.group.position.z > 15) {
+        scene.remove(object.group);
+        objects.splice(i, 1);
+      }
+    }
   }
 
-  function drawHero() {
-    const x=hero.x, y=hero.y;
-    if (hero.invulnerable>0 && Math.floor(frame/5)%2===0) return;
-    // web line during a jump
-    if (!hero.grounded) {
-      ctx.strokeStyle='#fff'; ctx.lineWidth=2;
-      ctx.beginPath(); ctx.moveTo(x+hero.w/2,y+5); ctx.lineTo(x+hero.w/2+80,Math.max(0,y-125)); ctx.stroke();
-    }
-    // legs
-    ctx.lineCap='round'; ctx.lineWidth=9; ctx.strokeStyle='#123e85';
-    ctx.beginPath(); ctx.moveTo(x+13,y+39); ctx.lineTo(x+7,y+55); ctx.moveTo(x+24,y+39); ctx.lineTo(x+31,y+53); ctx.stroke();
-    // torso
-    ctx.fillStyle='#e82d3b'; ctx.beginPath(); ctx.roundRect(x+6,y+19,25,27,8); ctx.fill();
-    ctx.fillStyle='#174e9b'; ctx.fillRect(x+8,y+33,21,12);
-    // arms
-    ctx.strokeStyle='#e82d3b'; ctx.lineWidth=7;
-    ctx.beginPath(); ctx.moveTo(x+8,y+25); ctx.lineTo(x-1,y+36); ctx.moveTo(x+29,y+25); ctx.lineTo(x+38,y+15); ctx.stroke();
-    // head
-    ctx.fillStyle='#e82d3b'; ctx.beginPath(); ctx.ellipse(x+19,y+11,14,15,0,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle='#7b1722'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.ellipse(x+19,y+11,14,15,0,0,Math.PI*2); ctx.stroke();
-    // eyes
-    ctx.fillStyle='white'; ctx.beginPath(); ctx.ellipse(x+13,y+10,4,6,-.3,0,Math.PI*2); ctx.ellipse(x+25,y+10,4,6,.3,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle='#20202a'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(x+18,y+24); ctx.lineTo(x+20,y+24); ctx.stroke();
-  }
+  // Follow the hero smoothly
+  camera.position.x += (hero.position.x * 0.45 - camera.position.x) * 0.06;
+  camera.lookAt(hero.position.x * 0.25, 1.2, -5);
 
-  function spawnThings() {
-    if (frame % 78 === 0) {
-      tokens.push({x:W+20,y:ground-65-Math.random()*115,r:12,taken:false});
-    }
-    if (frame % 115 === 0) {
-      obstacles.push({x:W+20,y:ground-32,w:24+Math.random()*18,h:32});
-    }
-  }
-  function drawThings() {
-    tokens.forEach(t => {
-      if(t.taken) return;
-      ctx.fillStyle='#ffcc32'; ctx.strokeStyle='#fff2a1'; ctx.lineWidth=3;
-      ctx.beginPath(); ctx.arc(t.x,t.y,t.r,0,Math.PI*2); ctx.fill(); ctx.stroke();
-      ctx.fillStyle='#a85d00'; ctx.font='bold 15px Arial'; ctx.textAlign='center'; ctx.fillText('★',t.x,t.y+5);
-    });
-    obstacles.forEach(o => {
-      ctx.fillStyle='#6f3444'; ctx.fillRect(o.x,o.y,o.w,o.h);
-      ctx.fillStyle='#f06b52'; ctx.fillRect(o.x+4,o.y+5,o.w-8,5);
-    });
-  }
-  function update() {
-    frame++; speed = Math.min(8,4+score/200);
-    if(keys.ArrowLeft||keys.a) hero.vx=-4.4;
-    else if(keys.ArrowRight||keys.d) hero.vx=4.4;
-    else hero.vx*=.78;
-    if((keys.ArrowUp||keys[' ']||keys.w) && hero.grounded) {
-      hero.vy=-12; hero.grounded=false;
-    }
-    hero.x += hero.vx;
-    hero.x = Math.max(0,Math.min(W-hero.w,hero.x));
-    hero.vy += .58; hero.y += hero.vy;
-    if(hero.y+hero.h >= ground) { hero.y=ground-hero.h; hero.vy=0; hero.grounded=true; }
-    if(hero.invulnerable>0) hero.invulnerable--;
-    spawnThings();
-    tokens.forEach(t => {
-      t.x -= speed;
-      if(!t.taken && Math.abs((hero.x+hero.w/2)-t.x)<t.r+18 && Math.abs((hero.y+hero.h/2)-t.y)<t.r+24) {
-        t.taken=true; score+=10; updateHud();
-      }
-    });
-    obstacles.forEach(o => {
-      o.x -= speed;
-      if(hero.invulnerable===0 && hero.x+hero.w-5>o.x && hero.x+5<o.x+o.w && hero.y+hero.h>o.y) {
-        health--; hero.invulnerable=75; updateHud();
-        if(health<=0) endGame();
-      }
-    });
-    tokens=tokens.filter(t=>t.x>-40&&!t.taken);
-    obstacles=obstacles.filter(o=>o.x>-60);
-  }
-  function draw() {
-    drawCity(); drawThings(); drawHero();
-    ctx.fillStyle='#09233cdd'; ctx.fillRect(15,15,250,42);
-    ctx.fillStyle='#fff'; ctx.font='bold 18px Arial'; ctx.textAlign='left';
-    ctx.fillText('WEB TOKENS: '+score,28,42);
-  }
-  function loop() {
-    if(!running) return;
-    update(); draw();
-    if(running) requestAnimationFrame(loop);
-  }
-  document.addEventListener('keydown', e => {
-    const k=e.key===' ' ? ' ' : e.key.length===1 ? e.key.toLowerCase() : e.key;
-    if(['ArrowLeft','ArrowRight','ArrowUp',' '].includes(k)) e.preventDefault();
-    keys[k]=true;
-  });
-  document.addEventListener('keyup', e => {
-    const k=e.key===' ' ? ' ' : e.key.length===1 ? e.key.toLowerCase() : e.key;
-    keys[k]=false;
-  });
-  startBtn.addEventListener('click',start);
-  document.getElementById('restartTop').addEventListener('click',start);
-  reset(); draw();
-})();
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
 </script>
 </body>
 </html>
