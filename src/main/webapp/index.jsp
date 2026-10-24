@@ -2,342 +2,247 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Oggy: Warrior Adventure</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Last Flame - Anime Short</title>
 <style>
 * { box-sizing: border-box; }
 body {
-  margin: 0; background: #101426; color: white;
+  margin: 0; background: #080d20; color: white;
   font-family: Arial, sans-serif; text-align: center;
-  overflow: hidden; touch-action: none;
 }
-h2 { margin: 10px 0 5px; color: #ffd166; }
-#hud { display:flex; justify-content:space-around; padding:8px; font-weight:bold; }
-canvas {
-  display:block; width:100%; max-width:900px; height:auto;
-  margin:auto; background:#263b65; border:2px solid #64748b;
+header { padding: 18px; color: #ffcc70; }
+h1 { margin-bottom: 5px; letter-spacing: 3px; }
+#screen {
+  position: relative; overflow: hidden;
+  width: 100%; max-width: 900px; height: 480px;
+  margin: auto; background: linear-gradient(#171b45,#7c2d55,#f59e0b);
 }
-.controls {
-  max-width:650px; margin:12px auto; display:flex;
-  justify-content:space-around; gap:8px; padding:0 8px;
+canvas { width: 100%; height: 100%; display: block; }
+#caption {
+  position: absolute; bottom: 15px; left: 5%;
+  width: 90%; padding: 13px; border-radius: 8px;
+  background: rgba(0,0,0,.78); font-size: 17px;
+  line-height: 1.5; min-height: 55px;
 }
+.controls { margin: 18px; }
 button {
-  border:0; border-radius:14px; padding:17px 12px;
-  background:#293b60; color:white; font-size:17px;
-  font-weight:bold; min-width:60px; touch-action:none;
-  box-shadow:0 4px #111827;
+  padding: 12px 20px; margin: 5px; border: none;
+  border-radius: 8px; font-weight: bold;
+  background: #f59e0b; color: #111827; cursor: pointer;
 }
-button:active { background:#e76f51; transform:translateY(2px); }
-#message { color:#ffd166; min-height:22px; }
+button:disabled { opacity: .4; }
+#sceneTitle { color: #fbbf24; }
 </style>
 </head>
 <body>
-<h2>⚔ OGGY: WARRIOR ADVENTURE</h2>
-<div id="hud">
-  <span>❤️ Health: <b id="health">100</b></span>
-  <span>⭐ Score: <b id="score">0</b></span>
-  <span>💀 Enemies: <b id="kills">0</b></span>
+<header>
+  <h1>THE LAST FLAME</h1>
+  <p>An original anime short film</p>
+</header>
+
+<div id="screen">
+  <canvas id="art" width="900" height="480"></canvas>
+  <div id="caption">A thousand years ago, darkness swallowed the kingdom...</div>
 </div>
 
-<canvas id="game" width="900" height="440"></canvas>
-<div id="message">Defeat the monsters! Protect Oggy's kingdom.</div>
-
+<h3 id="sceneTitle">Scene 1: The Fallen Kingdom</h3>
 <div class="controls">
-  <button id="left">◀</button>
-  <button id="right">▶</button>
-  <button id="jump">⬆ Jump</button>
-  <button id="attack">⚔ Attack</button>
+  <button onclick="previousScene()" id="prev">◀ Previous</button>
+  <button onclick="playPause()" id="play">▶ Play Movie</button>
+  <button onclick="nextScene()" id="next">Next ▶</button>
 </div>
-<button id="restart">↻ Restart Game</button>
+<p id="counter">Scene 1 of 5</p>
 
 <script>
-const canvas = document.getElementById("game");
+const canvas = document.getElementById("art");
 const ctx = canvas.getContext("2d");
-const $ = id => document.getElementById(id);
 
-let keys = {};
-let score = 0, kills = 0, health = 100;
-let gameOver = false, lastAttack = 0, spawnTimer = 0;
-let camera = 0, frame = 0;
+const scenes = [
+  {
+    title: "The Fallen Kingdom",
+    caption: "Narrator: A thousand years ago, darkness swallowed the kingdom of Aetheria.",
+    sky: ["#101735","#71364f","#f59e0b"],
+    hero: false, enemy: true
+  },
+  {
+    title: "The Boy with the Flame",
+    caption: "Kai: I may be the last warrior... but I will not let my home fall!",
+    sky: ["#172554","#7c3aed","#f97316"],
+    hero: true, enemy: false
+  },
+  {
+    title: "The Shadow Appears",
+    caption: "Shadow King: Your little flame cannot defeat eternal darkness!",
+    sky: ["#020617","#312e81","#991b1b"],
+    hero: true, enemy: true
+  },
+  {
+    title: "Awakening",
+    caption: "Kai: This power is not for revenge. It is for everyone I love!",
+    sky: ["#172554","#be123c","#fbbf24"],
+    hero: true, enemy: true
+  },
+  {
+    title: "A New Dawn",
+    caption: "Narrator: When the sun returned, a new legend was born. Kai: Our story starts today!",
+    sky: ["#38bdf8","#f9a8d4","#fef3c7"],
+    hero: true, enemy: false
+  }
+];
 
-const hero = {
-  x: 110, y: 300, w: 48, h: 70,
-  vx: 0, vy: 0, speed: 4, grounded: false,
-  facing: 1, attacking: 0, invincible: 0
-};
-let enemies = [];
+let current = 0, timer = null, playing = false, tick = 0;
 
-function spawnEnemy() {
-  enemies.push({
-    x: camera + 850 + Math.random() * 180,
-    y: 320, w: 42, h: 50,
-    hp: 2, alive: true, hit: 0
-  });
+function polygon(points, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(points[0][0], points[0][1]);
+  for (let i=1;i<points.length;i++)
+    ctx.lineTo(points[i][0], points[i][1]);
+  ctx.closePath();
+  ctx.fill();
 }
 
-function reset() {
-  score = 0; kills = 0; health = 100;
-  camera = 0; frame = 0; spawnTimer = 0;
-  gameOver = false; enemies = [];
-  Object.assign(hero, {
-    x:110, y:300, vx:0, vy:0, facing:1,
-    grounded:false, attacking:0, invincible:0
-  });
-  $("message").textContent =
-    "Defeat the monsters! Protect Oggy's kingdom.";
-}
+function drawCharacter(x, y, color, isHero) {
+  // Anime-style hair
+  ctx.fillStyle = isHero ? "#111827" : "#080808";
+  ctx.beginPath();
+  ctx.arc(x,y-35,24,Math.PI,Math.PI*2);
+  ctx.fill();
+  polygon([[x-24,y-34],[x-27,y-60],[x-5,y-48],
+           [x+5,y-67],[x+20,y-43],[x+26,y-30]], "#111827");
 
-function attack() {
-  if (gameOver) return;
-  const now = Date.now();
-  if (now - lastAttack < 350) return;
-  lastAttack = now;
-  hero.attacking = 12;
+  // Face
+  ctx.fillStyle = "#f5c9a5";
+  ctx.beginPath();
+  ctx.ellipse(x,y-30,17,21,0,0,Math.PI*2);
+  ctx.fill();
 
-  for (const e of enemies) {
-    if (!e.alive) continue;
-    const dx = e.x - hero.x;
-    const inFront = dx * hero.facing > -5;
-    if (Math.abs(dx) < 95 && inFront) {
-      e.hp--;
-      e.hit = 8;
-      e.x += hero.facing * 22;
-      if (e.hp <= 0) {
-        e.alive = false;
-        kills++;
-        score += 100;
-      }
-    }
+  // Eyes
+  ctx.fillStyle = "#111827";
+  ctx.beginPath(); ctx.ellipse(x-7,y-32,3,5,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x+7,y-32,3,5,0,0,Math.PI*2); ctx.fill();
+
+  // Body and cloak
+  polygon([[x-15,y-10],[x+15,y-10],[x+25,y+45],
+           [x-25,y+45]],color);
+  polygon([[x-13,y-5],[x-45,y+40],[x-22,y+35]],"#1e293b");
+
+  // Legs
+  ctx.fillStyle="#111827";
+  ctx.fillRect(x-18,y+42,13,24);
+  ctx.fillRect(x+5,y+42,13,24);
+
+  // Magical sword
+  if(isHero) {
+    ctx.save();
+    ctx.translate(x+20,y+4);
+    ctx.rotate(-0.45+Math.sin(tick/8)*0.15);
+    ctx.fillStyle="#67e8f9";
+    ctx.fillRect(0,-48,6,53);
+    ctx.fillStyle="#fbbf24";
+    ctx.fillRect(-7,0,20,5);
+    ctx.restore();
+  } else {
+    ctx.fillStyle="#a855f7";
+    ctx.beginPath();
+    ctx.arc(x,y-10,30+Math.sin(tick/5)*5,0,Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle="#111827";
+    ctx.beginPath();
+    ctx.arc(x,y-15,19,0,Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle="#f87171";
+    ctx.fillRect(x-10,y-19,6,4);
+    ctx.fillRect(x+5,y-19,6,4);
   }
 }
 
-function bindButton(id, key) {
-  const el = $(id);
-  const down = e => {
-    e.preventDefault();
-    keys[key] = true;
-    if (key === "attack") attack();
-    if (key === "jump" && hero.grounded && !gameOver) {
-      hero.vy = -12;
-      hero.grounded = false;
-    }
-  };
-  const up = e => {
-    e.preventDefault();
-    keys[key] = false;
-  };
-  el.addEventListener("pointerdown", down);
-  el.addEventListener("pointerup", up);
-  el.addEventListener("pointercancel", up);
-  el.addEventListener("pointerleave", up);
-}
+function draw() {
+  tick++;
+  const s = scenes[current];
+  const grad = ctx.createLinearGradient(0,0,0,480);
+  s.sky.forEach((c,i)=>grad.addColorStop(i/2,c));
+  ctx.fillStyle=grad;
+  ctx.fillRect(0,0,900,480);
 
-bindButton("left", "left");
-bindButton("right", "right");
-bindButton("jump", "jump");
-bindButton("attack", "attack");
-
-window.addEventListener("keydown", e => {
-  if (["ArrowLeft","ArrowRight","ArrowUp"," "].includes(e.key))
-    e.preventDefault();
-  keys[e.key] = true;
-  if (e.key === " " || e.key === "j") attack();
-  if ((e.key === "ArrowUp" || e.key === "w") &&
-      hero.grounded && !gameOver) {
-    hero.vy = -12;
-    hero.grounded = false;
-  }
-});
-window.addEventListener("keyup", e => keys[e.key] = false);
-$("restart").addEventListener("click", reset);
-
-function drawBackground() {
-  const sky = ctx.createLinearGradient(0,0,0,440);
-  sky.addColorStop(0,"#172554");
-  sky.addColorStop(1,"#60a5fa");
-  ctx.fillStyle = sky;
-  ctx.fillRect(0,0,900,440);
+  // Moon / sun
+  ctx.fillStyle="#fff0bd";
+  ctx.beginPath();
+  ctx.arc(700,100,45,0,Math.PI*2);
+  ctx.fill();
 
   // Distant mountains
-  ctx.fillStyle = "#334155";
-  for(let i=0;i<7;i++) {
-    let x = ((i*180-camera*0.2)%1100+1100)%1100-100;
-    ctx.beginPath();
-    ctx.moveTo(x,350); ctx.lineTo(x+90,140);
-    ctx.lineTo(x+190,350); ctx.fill();
+  polygon([[0,320],[150,170],[270,320],[420,190],
+           [600,330],[760,180],[900,320],[900,480],[0,480]],"#283354");
+
+  // Ruined castle
+  ctx.fillStyle="#151b32";
+  ctx.fillRect(370,210,160,150);
+  ctx.fillRect(390,160,30,70);
+  ctx.fillRect(475,145,32,85);
+  for(let i=0;i<4;i++) {
+    ctx.fillRect(375+i*42,195,20,15);
   }
 
   // Ground
-  ctx.fillStyle="#365314";
-  ctx.fillRect(0,370,900,70);
-  ctx.fillStyle="#84cc16";
-  ctx.fillRect(0,370,900,7);
-
-  // Ground markings
-  ctx.fillStyle="#4d7c0f";
-  for(let i=0;i<30;i++) {
-    const x = ((i*47-camera)%950+950)%950;
-    ctx.fillRect(x,390+(i%3)*12,22,3);
-  }
-}
-
-function drawHero() {
-  const x = hero.x-camera, y=hero.y;
-  ctx.save();
-  ctx.translate(x+hero.w/2,y+hero.h/2);
-  if(hero.facing<0) ctx.scale(-1,1);
-
-  // Legs
-  ctx.fillStyle="#172554";
-  ctx.fillRect(-15,18,12,24);
-  ctx.fillRect(5,18,12,24);
   ctx.fillStyle="#111827";
-  ctx.fillRect(-19,37,19,7);
-  ctx.fillRect(4,37,19,7);
+  ctx.fillRect(0,380,900,100);
 
-  // Blue cartoon body
-  ctx.fillStyle="#168aad";
-  ctx.beginPath(); ctx.ellipse(0,5,24,28,0,0,Math.PI*2); ctx.fill();
+  // Animated magical particles
+  for(let i=0;i<45;i++) {
+    const x=(i*127+tick*(i%3+1))%900;
+    const y=(i*71+tick*1.5)%390;
+    ctx.fillStyle=i%2?"#fbbf24":"#67e8f9";
+    ctx.globalAlpha=.3+(i%5)/7;
+    ctx.fillRect(x,y,3,3);
+  }
+  ctx.globalAlpha=1;
 
-  // Face
-  ctx.fillStyle="#f1c27d";
-  ctx.beginPath(); ctx.ellipse(0,-17,22,21,0,0,Math.PI*2); ctx.fill();
+  if(s.hero) drawCharacter(350+Math.sin(tick/12)*8,330,"#2563eb",true);
+  if(s.enemy) drawCharacter(650,330,"#7e22ce",false);
 
-  // Eyes
-  ctx.fillStyle="white";
-  ctx.beginPath(); ctx.ellipse(-8,-20,7,9,0,0,Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(8,-20,7,9,0,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle="#111827";
-  ctx.beginPath(); ctx.arc(-6,-19,3,0,Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(10,-19,3,0,Math.PI*2); ctx.fill();
-
-  // Helmet
-  ctx.fillStyle="#fbbf24";
-  ctx.beginPath(); ctx.arc(0,-26,22,Math.PI,Math.PI*2); ctx.fill();
-  ctx.fillRect(-22,-27,44,5);
-
-  // Sword
-  ctx.save();
-  if(hero.attacking>0) ctx.rotate(-0.9);
-  ctx.fillStyle="#d1d5db";
-  ctx.fillRect(19,-10,42,7);
-  ctx.fillStyle="#fbbf24";
-  ctx.fillRect(16,-13,6,15);
-  ctx.fillStyle="#92400e";
-  ctx.fillRect(8,-10,10,7);
-  ctx.restore();
-
-  ctx.restore();
+  document.getElementById("caption").textContent=s.caption;
+  document.getElementById("sceneTitle").textContent=
+    "Scene "+(current+1)+": "+s.title;
+  document.getElementById("counter").textContent=
+    "Scene "+(current+1)+" of "+scenes.length;
+  document.getElementById("prev").disabled=current===0;
+  document.getElementById("next").disabled=current===scenes.length-1;
+  requestAnimationFrame(draw);
 }
 
-function drawEnemy(e) {
-  const x=e.x-camera;
-  if(x < -70 || x > 970) return;
-
-  ctx.fillStyle=e.hit>0?"#fff":"#991b1b";
-  ctx.beginPath();
-  ctx.ellipse(x+21,e.y+23,22,26,0,0,Math.PI*2);
-  ctx.fill();
-
-  ctx.fillStyle="#fca5a5";
-  ctx.fillRect(x+5,e.y+7,9,7);
-  ctx.fillRect(x+25,e.y+7,9,7);
-  ctx.fillStyle="#111827";
-  ctx.fillRect(x+9,e.y+10,5,5);
-  ctx.fillRect(x+27,e.y+10,5,5);
-
-  ctx.fillStyle="#111827";
-  ctx.fillRect(x+5,e.y+42,12,9);
-  ctx.fillRect(x+26,e.y+42,12,9);
-
-  // Enemy health bar
-  ctx.fillStyle="#111827"; ctx.fillRect(x,e.y-9,42,5);
-  ctx.fillStyle="#ef4444"; ctx.fillRect(x,e.y-9,42*e.hp/2,5);
-}
-
-function update() {
-  if(gameOver) return;
-  frame++;
-
-  hero.vx=0;
-  if(keys.left || keys.ArrowLeft || keys.a) {
-    hero.vx=-hero.speed; hero.facing=-1;
-  }
-  if(keys.right || keys.ArrowRight || keys.d) {
-    hero.vx=hero.speed; hero.facing=1;
-  }
-
-  hero.x += hero.vx;
-  hero.vy += 0.55;
-  hero.y += hero.vy;
-
-  if(hero.y+hero.h>=370) {
-    hero.y=370-hero.h;
-    hero.vy=0; hero.grounded=true;
-  }
-  hero.x=Math.max(camera,Math.min(camera+780,hero.x));
-
-  camera=Math.max(0,hero.x-250);
-  if(hero.attacking>0) hero.attacking--;
-  if(hero.invincible>0) hero.invincible--;
-
-  spawnTimer++;
-  if(spawnTimer>95) {
-    spawnEnemy();
-    spawnTimer=0;
-  }
-
-  for(const e of enemies) {
-    if(!e.alive) continue;
-    if(e.hit>0) e.hit--;
-
-    if(Math.abs(e.x-hero.x)<450) {
-      e.x += e.x>hero.x ? -1.15 : 1.15;
-    }
-
-    if(Math.abs(e.x-hero.x)<42 &&
-       Math.abs(e.y-hero.y)<58 &&
-       hero.invincible===0) {
-      health-=10;
-      hero.invincible=55;
-      hero.vy=-5;
-      if(health<=0) {
-        health=0;
-        gameOver=true;
-        $("message").textContent="Game Over! Press Restart to play again.";
-      }
-    }
-  }
-
-  enemies=enemies.filter(e=>e.alive && e.x>camera-150);
-  $("health").textContent=health;
-  $("score").textContent=score;
-  $("kills").textContent=kills;
-}
-
-function render() {
-  drawBackground();
-  for(const e of enemies) drawEnemy(e);
-  if(hero.invincible===0 || frame%8<4) drawHero();
-
-  if(gameOver) {
-    ctx.fillStyle="rgba(0,0,0,0.65)";
-    ctx.fillRect(0,0,900,440);
-    ctx.fillStyle="#ffd166";
-    ctx.textAlign="center";
-    ctx.font="bold 44px Arial";
-    ctx.fillText("GAME OVER",450,205);
-    ctx.font="22px Arial";
-    ctx.fillText("Score: "+score,450,245);
+function showScene(index) {
+  current=Math.max(0,Math.min(scenes.length-1,index));
+  if(playing) {
+    clearInterval(timer);
+    timer=setInterval(autoNext,6000);
   }
 }
-
-function loop() {
-  update();
-  render();
-  requestAnimationFrame(loop);
+function nextScene() {
+  if(current<scenes.length-1) showScene(current+1);
+  else stopMovie();
 }
-loop();
+function previousScene() { showScene(current-1); }
+function autoNext() {
+  if(current<scenes.length-1) showScene(current+1);
+  else stopMovie();
+}
+function playPause() {
+  if(playing) {
+    playing=false; clearInterval(timer);
+    document.getElementById("play").textContent="▶ Resume Movie";
+  } else {
+    if(current===scenes.length-1) current=0;
+    playing=true;
+    document.getElementById("play").textContent="⏸ Pause Movie";
+    timer=setInterval(autoNext,6000);
+  }
+}
+function stopMovie() {
+  playing=false; clearInterval(timer);
+  document.getElementById("play").textContent="▶ Replay Movie";
+}
+draw();
 </script>
 </body>
 </html>
